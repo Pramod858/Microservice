@@ -2,15 +2,38 @@ Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
       - Label:
-          default: AWS EC2 and VPC Configuration
+          default: EKS Cluster Configuration
+        Parameters:
+          - EnvironmentName
+      - Label:
+          default: AWS Node Configuration
         Parameters:
           - KeyPairName
+          - MinSize
+          - MaxSize
+          - DesiredSize
+          - IntanceType
+      - Label:
+          default: Network Configuration
+        Parameters:
           - VpcCIDR
           - PublicSubnet1CIDR
           - PublicSubnet2CIDR
           - PrivateSubnet1CIDR
           - PrivateSubnet2CIDR
     ParameterLabels:
+      EnvironmentName:
+        default: Environment Name
+      KeyPairName:
+        default: Key Pair Name
+      MinSize:
+        default: Minimum Number of Instances
+      MaxSize:
+        default: Maximum Number of Instances
+      DesiredSize:
+        default: Desired Number of Instances
+      IntanceType:
+        default: Instance Type
       VpcCIDR:
         default: VPC CIDR
       PublicSubnet1CIDR:
@@ -24,13 +47,37 @@ Metadata:
 
 Parameters:
   EnvironmentName:
-    Description: Please Enter the name of the VPC
+    Description: Name of the environment (This will be added to before every service name.)
     Type: String
     Default: EKS
 
   KeyPairName:
     Description : Choose a Key Pair that is available in this region
     Type: AWS::EC2::KeyPair::KeyName
+
+  MinSize:
+    Description: Minimum number of instances in autoscaling group
+    Type: Number
+    Default: 1
+
+  MaxSize:
+    Description: Maximum number of instances in autoscaling group
+    Type: Number
+    Default: 3
+
+  DesiredSize:
+    Description: Desired number of instances in autoscaling group
+    Type: Number
+    Default: 2
+
+  IntanceType:
+    Description: EC2 instance type
+    Type: String
+    Default: t2.micro
+    AllowedValues:
+      - t2.micro
+      - t2.small
+      - t2.medium
 
   VpcCIDR:
     Description: Please enter the IP range (CIDR notation) for this VPC
@@ -239,7 +286,6 @@ Resources:
               - sts:AssumeRole
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/AmazonEKSClusterPolicy
-        - arn:aws:iam::aws:policy/AmazonEKSServicePolicy
 
   EKSNodeRole:
     Type: AWS::IAM::Role
@@ -291,13 +337,13 @@ Resources:
         - !Ref PublicSubnet1
         - !Ref PublicSubnet2
       ScalingConfig:
-        MinSize: 1
-        DesiredSize: 1
-        MaxSize: 3
+        MinSize: !Ref MinSize
+        DesiredSize: !Ref DesiredSize
+        MaxSize: !Ref MaxSize
       RemoteAccess:
         Ec2SshKey: !Ref KeyPairName
         SourceSecurityGroups:
           - !Ref NodeSecurityGroup
       InstanceTypes:
-        - t2.medium
+        - !Ref IntanceType
       
